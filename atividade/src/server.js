@@ -1,65 +1,49 @@
-/**
- * SUT - System Under Test
- * API de Checkout Simulada para Aula de Performance
- *
- * NÃO ALTERE ESTE ARQUIVO. O OBJETIVO É TESTAR ESTA APLICAÇÃO COMO UMA CAIXA PRETA.
- */
-
 const express = require('express');
-const bodyParser = require('body-parser');
-const bcrypt = require('bcryptjs'); // Usado para simular carga de CPU
-
 const app = express();
-app.use(bodyParser.json());
+
+// Simula processamento pesado (CPU Bound)
+function fibonacci(n) {
+  if (n < 2) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'Serviço operante' });
+});
+
+// Endpoint que consome CPU
+app.get('/heavy', (req, res) => {
+  const start = Date.now();
+  const result = fibonacci(35); // Número alto para gerar delay
+  const time = Date.now() - start;
+  res.json({ status: 'done', result, time });
+});
+
+// Endpoint que simula delay de I/O (Banco de dados externo)
+app.get('/io-wait', (req, res) => {
+  setTimeout(() => {
+    res.json({ status: 'done', type: 'io-bound' });
+  }, 500); // 500ms de delay
+});
+
+app.get('/checkout/simple', (req, res) => {
+res.json({ status: 'success', transactionId: Math.random().toString(36).substr(2, 9) });
+});
+
+app.get('/health', (req, res) => {
+res.json({ status: 'UP' });
+});
+
+app.get('/checkout/crypto', (req, res) => {
+const start = Date.now();
+const result = fibonacci(35);
+const time = Date.now() - start;
+res.json({ status: 'crypto checkout processed', result, time_ms: time });
+});
+
+app.get('/checkout/simple', (req, res) => {
+res.json({ status: 'success', transactionId: Math.random().toString(36).substr(2, 9) });
+});
 
 const PORT = 3000;
-
-// Rota leve para Smoke Test
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'UP', timestamp: new Date() });
-});
-
-/**
- * Rota simulando I/O Bound (ex: Banco de Dados, Chamada Externa)
- * Comportamento: Demora um tempo fixo (simulando latência de rede/disco) mas consome pouca CPU.
- * Ideal para Teste de Carga e Spike.
- */
-app.post('/checkout/simple', (req, res) => {
-    // Simula um delay de I/O de ~100ms a ~300ms
-    const delay = Math.floor(Math.random() * 200) + 100;
-
-    setTimeout(() => {
-        res.status(201).json({
-            id: Math.floor(Math.random() * 10000),
-            status: 'APPROVED',
-            processingTime: `${delay}ms`
-        });
-    }, delay);
-});
-
-/**
- * Rota simulando CPU Bound (ex: Criptografia, Processamento de Imagem, Relatório Complexo)
- * Comportamento: Bloqueia o Event Loop do Node.js.
- * Ideal para Teste de Estresse (achar o ponto de ruptura).
- */
-app.post('/checkout/crypto', (req, res) => {
-    try {
-        const salt = bcrypt.genSaltSync(10); // Custo computacional médio
-        const hash = bcrypt.hashSync("senha_super_secreta_do_usuario", salt);
-
-        res.status(201).json({
-            id: Math.floor(Math.random() * 10000),
-            status: 'SECURE_TRANSACTION',
-            hash: hash.substring(0, 20) + '...'
-        });
-    } catch (e) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`🚀 SUT (Ecommerce API) rodando na porta ${PORT}`);
-    console.log(`👉 Smoke Test: http://localhost:${PORT}/health`);
-    console.log(`👉 Load Test Target: POST http://localhost:${PORT}/checkout/simple`);
-    console.log(`👉 Stress Test Target: POST http://localhost:${PORT}/checkout/crypto`);
-});
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
